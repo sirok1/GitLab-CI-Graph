@@ -129,6 +129,28 @@ async function checkLocalInheritance() {
       await evaluate(`document.querySelector('aside').textContent`),
       /Stage inherited from.*\.publish Android release/,
     );
+    await button("Fit View");
+    await evaluate(`document.querySelector('.react-flow__controls-zoomin').click()`);
+    await delay(400);
+    const pane = await evaluate(`(()=>{const r=document.querySelector('.react-flow').getBoundingClientRect();return {x:r.right-30,y:r.top+20}})()`);
+    await call("Input.dispatchMouseEvent", { type: "mousePressed", ...pane, button: "left", clickCount: 1 });
+    await call("Input.dispatchMouseEvent", { type: "mouseMoved", x: pane.x - 65, y: pane.y + 40, button: "left", buttons: 1 });
+    await call("Input.dispatchMouseEvent", { type: "mouseReleased", x: pane.x - 65, y: pane.y + 40, button: "left", clickCount: 1 });
+    await delay(350);
+    const camera = await evaluate(`document.querySelector('.react-flow__viewport').style.transform`);
+    // Exercise the exact backend event protocol without relying on the IDE's
+    // external-disk refresh timing while its window is in the background.
+    await evaluate(`(()=>{window.__viewportOriginal=structuredClone(window.__inheritanceSmoke);const s=structuredClone(window.__viewportOriginal);s.pipeline.jobs.push({...s.pipeline.jobs[0],id:'viewport-regression',name:'viewport-regression'});window.dispatchEvent(new CustomEvent('pipeline:update',{detail:s}));})()`);
+    await waitFor(`window.__inheritanceSmoke?.pipeline?.jobs.some(j=>j.name==='viewport-regression') && !window.__inheritanceSmoke.loading`);
+    await delay(700);
+    assert.equal(await evaluate(`document.querySelector('.react-flow__viewport').style.transform`), camera, "Auto-refresh must preserve zoom and pan when jobs change");
+    await evaluate(`(()=>{const s=structuredClone(window.__viewportOriginal);s.pipeline.jobs=[];s.pipeline.edges=[];s.pipeline.valid=false;s.pipeline.errors=['Invalid YAML'];window.dispatchEvent(new CustomEvent('pipeline:update',{detail:s}));})()`);
+    await waitFor(`window.__inheritanceSmoke?.pipeline?.valid === false && !window.__inheritanceSmoke.loading`);
+    await evaluate(`window.dispatchEvent(new CustomEvent('pipeline:update',{detail:window.__viewportOriginal}))`);
+    await waitFor(`window.__inheritanceSmoke?.pipeline?.jobs.length === 8 && !window.__inheritanceSmoke.loading`);
+    await delay(700);
+    assert.equal(await evaluate(`document.querySelector('.react-flow__viewport').style.transform`), camera, "Recovering from invalid YAML must preserve zoom and pan");
+    console.log("Viewport regression passed: zoom and pan survive pipeline:update events and invalid YAML recovery.");
     console.log(
       "Inheritance JCEF regression passed: hidden templates, inherited publish stages, EXTENDS badges, details and undeclared-stage warnings.",
     );

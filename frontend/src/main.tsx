@@ -114,7 +114,7 @@ function App() {
   }>();
   const [reset, setReset] = useState(0);
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState<JobNode>([]);
-  const fittedGraph = useRef<unknown>(null);
+  const fittedView = useRef<string | null>(null);
   const flow = useReactFlow<JobNode>();
   const nodesInitialized = useNodesInitialized();
   useEffect(() => {
@@ -163,15 +163,20 @@ function App() {
       { padding: 0.12, duration: 200 },
     );
   }
+  // Content refreshes must preserve the user's camera. Fit only when opening
+  // a different pipeline or explicitly changing/resetting its layout.
+  const viewKey = p
+    ? JSON.stringify([p.source.mode, p.source.file, p.source.ref, layout, reset])
+    : null;
   useEffect(() => {
-    if (p && nodesInitialized && fittedGraph.current !== graph) {
+    if (viewKey && nodesInitialized && fittedView.current !== viewKey) {
       const timer = setTimeout(() => {
-        fittedGraph.current = graph;
+        fittedView.current = viewKey;
         fitGraph();
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [graph, nodesInitialized]);
+  }, [viewKey, graph, nodesInitialized]);
   const matches = useMemo(
     () =>
       graph.nodes.filter(

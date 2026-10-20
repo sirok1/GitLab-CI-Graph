@@ -169,6 +169,9 @@ async function checkLocalInheritance() {
 }
 try {
   await button("Fit View");
+  await evaluate(`document.querySelector('.react-flow__controls-zoomout').click()`);
+  await delay(350);
+  const cameraBeforeScreenshot = await evaluate(`document.querySelector('.react-flow__viewport').style.transform`);
   await evaluate(`(()=>{const send=window.ideSend;window.ideSend=m=>{if(m.type==='screenshot:copy')window.__screenshotSmoke=m.image;send(m);};})()`);
   await button("Copy screenshot");
   await waitFor(`document.querySelector('[role="status"]')?.textContent.includes('Screenshot copied')`);
@@ -182,14 +185,21 @@ try {
     const point=path.getPointAtLength(path.getTotalLength()/2);
     const screen=new DOMPoint(point.x,point.y).matrixTransform(path.getScreenCTM());
     const bounds=document.querySelector('.workspace').getBoundingClientRect();
-    const x=Math.round((screen.x-bounds.x)*image.width/bounds.width);
-    const y=Math.round((screen.y-bounds.y)*image.height/bounds.height);
+    const rects=[...document.querySelectorAll('.react-flow__node,.column > b')].map(n=>n.getBoundingClientRect());
+    const left=Math.max(bounds.left,Math.floor(Math.min(...rects.map(r=>r.left))-24));
+    const top=Math.max(bounds.top,Math.floor(Math.min(...rects.map(r=>r.top))-24));
+    const ratio=Math.min(devicePixelRatio||1,2);
+    if(image.height>=bounds.height*ratio*.9)throw new Error('Empty vertical margins were not cropped');
+    const x=Math.round((screen.x-left)*ratio);
+    const y=Math.round((screen.y-top)*ratio);
     const pixels=ctx.getImageData(x-2,y-2,5,5).data;
     return Array.from(pixels).some((v,i)=>i%4===0 && v>40);
   })()`), "Exported PNG must contain the dependency arrow, not just job cards");
+  assert.equal(await evaluate(`document.querySelector('.react-flow__viewport').style.transform`), cameraBeforeScreenshot, "Screenshot cropping must not change zoom/pan");
   await mkdir("build", { recursive: true });
   await writeFile("build/workspace-screenshot.png", Buffer.from(screenshot.split(",")[1], "base64"));
   console.log("Screenshot regression passed: actual JCEF workspace exported to native clipboard.");
+  await button("Fit View");
   const initial = await evaluate(
     `({jobs:document.querySelectorAll('.job').length,edges:document.querySelectorAll('.react-flow__edge').length,stages:document.querySelectorAll('.column').length,status:document.querySelector('.status').textContent})`,
   );

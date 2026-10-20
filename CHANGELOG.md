@@ -10,6 +10,8 @@ Release notes use the matching version section below. For future versions withou
 
 ### Fixed
 
+- Automatically crop empty screenshot margins around visible graph content with a small padding, preserving zoom and pan.
+
 - Preserve zoom and pan when pipeline files refresh, including recovery from invalid YAML.
 - Resolve local `extends` from hidden and regular jobs, including nested/multiple parents and local includes; display inherited stages, template badges and ancestry.
 - Preserve original `extends` metadata in GitLab resolved mode and warn about cycles, unavailable templates and undeclared stages.

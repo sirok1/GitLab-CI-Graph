@@ -1,4 +1,5 @@
 import { toSvg } from "html-to-image";
+import { screenshotBounds } from "./screenshotBounds";
 
 const svgProperties = [
   "fill",
@@ -29,6 +30,25 @@ export async function captureWorkspace(
   const background = getComputedStyle(document.documentElement)
     .getPropertyValue("--bg")
     .trim();
+  const view = workspace.getBoundingClientRect();
+  const crop = screenshotBounds(
+    view,
+    Array.from(
+      workspace.querySelectorAll(
+        ".react-flow__node, .react-flow__edge-path, .react-flow__edge-textwrapper, .column > b, aside > *",
+      ),
+    ).map((element) => {
+      const r = element.getBoundingClientRect();
+      // Edge paths can have zero height/width; retain their stroke and arrowhead.
+      const extra = element.classList.contains("react-flow__edge-path") ? 8 : 0;
+      return {
+        x: r.x - extra,
+        y: r.y - extra,
+        width: r.width + extra * 2,
+        height: r.height + extra * 2,
+      };
+    }),
+  );
   const data = await toSvg(workspace, {
     backgroundColor: background,
     filter: (node) => !(node instanceof Element && excluded(node)),
@@ -70,8 +90,8 @@ export async function captureWorkspace(
   await loaded;
   const canvas = document.createElement("canvas");
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.ceil(image.width * ratio);
-  canvas.height = Math.ceil(image.height * ratio);
+  canvas.width = Math.ceil(crop.width * ratio);
+  canvas.height = Math.ceil(crop.height * ratio);
   const context = canvas.getContext("2d");
   if (
     !context ||
@@ -82,6 +102,16 @@ export async function captureWorkspace(
     throw new Error("Workspace too large");
   context.fillStyle = background;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  context.drawImage(
+    image,
+    (crop.x * image.width) / view.width,
+    (crop.y * image.height) / view.height,
+    (crop.width * image.width) / view.width,
+    (crop.height * image.height) / view.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
   return canvas.toDataURL("image/png");
 }

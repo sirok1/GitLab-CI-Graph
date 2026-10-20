@@ -31,7 +31,7 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicLong
 import javax.swing.JPanel
 
-data class BridgeMessage(val type: String = "", val job: String? = null, val file: String? = null, val mode: String? = null, val ref: String? = null)
+data class BridgeMessage(val type: String = "", val job: String? = null, val file: String? = null, val mode: String? = null, val ref: String? = null, val image: String? = null)
 data class ViewState(val pipeline: PipelineModel?, val configs: List<String>, val selectedFile: String, val dark: Boolean, val loading: Boolean = false, val error: String? = null, val gitLabConfigured: Boolean = false, val defaultRef: String = "main")
 
 class GraphPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
@@ -72,6 +72,12 @@ class GraphPanel(private val project: Project) : JPanel(BorderLayout()), Disposa
     }
     private fun handle(message: BridgeMessage) {
         when (message.type) {
+            "screenshot:copy", "screenshot:save" -> WorkspaceScreenshot.export(project, message.image, message.type == "screenshot:save") { result ->
+                if (!disposed && !project.isDisposed) {
+                    val payload = gson.toJson(mapOf("message" to result))
+                    browser.cefBrowser.executeJavaScript("window.dispatchEvent(new CustomEvent('screenshot:result',{detail:$payload}));", browser.cefBrowser.url, 0)
+                }
+            }
             "graph:refresh" -> refresh()
             "source:change" -> {
                 message.file?.takeIf { it in configs }?.let { GraphSettings.get(project).state.selectedFile = it }

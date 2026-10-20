@@ -59,6 +59,7 @@ export interface BridgeMessage {
   file?: string;
   mode?: string;
   ref?: string;
+  image?: string;
 }
 declare global {
   interface Window {

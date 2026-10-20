@@ -11,6 +11,7 @@ Plugin ID: `space.sirok.gitlab-ci-graph` · Vendor: Sirok.
 - Explicit `needs` arrows, dashed optional edges, artifact metadata, manual/allow-failure/trigger/environment badges.
 - Search (Enter focuses the next match, Escape clears), zoom, pan, minimap, Fit View and reset layout.
 - Job details, upstream/downstream focus and context menu.
+- **Copy screenshot** copies the visible graph workspace and open job details as an image for pasting into a chat; **Save PNG** exports the same view to a file. Current zoom, pan and theme are preserved; IDE chrome and graph controls are excluded. Use Fit View first to include the whole pipeline.
 - Double-click opens the exact local job definition, including local include files.
 - Refresh while editing YAML, including unsaved local include files, with a 400 ms debounce; saved/external VFS changes are also tracked. Light/dark IDE theme updates.
 - GitLab CI Lint integration, validation errors/warnings, configurable server/project/ref and PasswordSafe token storage.

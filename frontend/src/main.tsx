@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { captureWorkspace } from "./screenshot";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -113,6 +114,33 @@ function App() {
     job: PipelineJob;
   }>();
   const [reset, setReset] = useState(0);
+  const [capturing, setCapturing] = useState(false);
+  const [captureStatus, setCaptureStatus] = useState("");
+  useEffect(() => {
+    const done = (event: Event) => {
+      setCapturing(false);
+      setCaptureStatus(
+        (event as CustomEvent<{ message: string }>).detail.message,
+      );
+    };
+    window.addEventListener("screenshot:result", done);
+    return () => window.removeEventListener("screenshot:result", done);
+  }, []);
+  async function screenshot(action: "copy" | "save") {
+    const workspace = document.querySelector<HTMLElement>(".workspace");
+    if (!workspace || capturing) return;
+    setCapturing(true);
+    setCaptureStatus("");
+    try {
+      const image = await captureWorkspace(workspace);
+      send({ type: `screenshot:${action}`, image });
+    } catch {
+      setCapturing(false);
+      setCaptureStatus(
+        "Cannot create screenshot. Try reducing the Tool Window size.",
+      );
+    }
+  }
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState<JobNode>([]);
   const fittedView = useRef<string | null>(null);
   const flow = useReactFlow<JobNode>();
@@ -166,7 +194,13 @@ function App() {
   // Content refreshes must preserve the user's camera. Fit only when opening
   // a different pipeline or explicitly changing/resetting its layout.
   const viewKey = p
-    ? JSON.stringify([p.source.mode, p.source.file, p.source.ref, layout, reset])
+    ? JSON.stringify([
+        p.source.mode,
+        p.source.file,
+        p.source.ref,
+        layout,
+        reset,
+      ])
     : null;
   useEffect(() => {
     if (viewKey && nodesInitialized && fittedView.current !== viewKey) {
@@ -312,6 +346,20 @@ function App() {
         </button>
         <button onClick={fitGraph}>Fit View</button>
         <button onClick={() => setReset((r) => r + 1)}>Reset layout</button>
+        <button
+          disabled={capturing || !p?.jobs.length}
+          onClick={() => void screenshot("copy")}
+          title="Copy visible workspace as an image for pasting into a chat"
+        >
+          Copy screenshot
+        </button>
+        <button
+          disabled={capturing || !p?.jobs.length}
+          onClick={() => void screenshot("save")}
+          title="Save visible workspace as PNG"
+        >
+          Save PNG
+        </button>
         <button onClick={() => send({ type: "settings:open" })}>
           Settings
         </button>
@@ -333,6 +381,9 @@ function App() {
               : ""}
         </span>
         {search && <span>{matches.length} matches</span>}
+        <span role="status" aria-live="polite">
+          {capturing ? "Creating screenshot…" : captureStatus}
+        </span>
       </div>
       {state.error && (
         <div role="alert" className="error">

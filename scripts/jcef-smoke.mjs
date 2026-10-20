@@ -169,6 +169,27 @@ async function checkLocalInheritance() {
 }
 try {
   await button("Fit View");
+  await evaluate(`(()=>{const send=window.ideSend;window.ideSend=m=>{if(m.type==='screenshot:copy')window.__screenshotSmoke=m.image;send(m);};})()`);
+  await button("Copy screenshot");
+  await waitFor(`document.querySelector('[role="status"]')?.textContent.includes('Screenshot copied')`);
+  const screenshot = await evaluate(`window.__screenshotSmoke`);
+  assert(screenshot.startsWith("data:image/png;base64,"));
+  assert(await evaluate(`(async()=>{
+    const image=new Image();image.src=window.__screenshotSmoke;await image.decode();
+    const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+    const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);
+    const path=document.querySelector('.react-flow__edge-path');
+    const point=path.getPointAtLength(path.getTotalLength()/2);
+    const screen=new DOMPoint(point.x,point.y).matrixTransform(path.getScreenCTM());
+    const bounds=document.querySelector('.workspace').getBoundingClientRect();
+    const x=Math.round((screen.x-bounds.x)*image.width/bounds.width);
+    const y=Math.round((screen.y-bounds.y)*image.height/bounds.height);
+    const pixels=ctx.getImageData(x-2,y-2,5,5).data;
+    return Array.from(pixels).some((v,i)=>i%4===0 && v>40);
+  })()`), "Exported PNG must contain the dependency arrow, not just job cards");
+  await mkdir("build", { recursive: true });
+  await writeFile("build/workspace-screenshot.png", Buffer.from(screenshot.split(",")[1], "base64"));
+  console.log("Screenshot regression passed: actual JCEF workspace exported to native clipboard.");
   const initial = await evaluate(
     `({jobs:document.querySelectorAll('.job').length,edges:document.querySelectorAll('.react-flow__edge').length,stages:document.querySelectorAll('.column').length,status:document.querySelector('.status').textContent})`,
   );

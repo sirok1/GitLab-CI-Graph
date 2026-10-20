@@ -4,6 +4,10 @@ Release notes use the matching version section below. For future versions withou
 
 ## [Unreleased]
 
+### Added
+
+- Copy the visible graph workspace to the clipboard or save it as PNG for sharing in chats.
+
 ### Fixed
 
 - Preserve zoom and pan when pipeline files refresh, including recovery from invalid YAML.

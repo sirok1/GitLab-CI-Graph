@@ -172,9 +172,11 @@ try {
   await evaluate(`document.querySelector('.react-flow__controls-zoomout').click()`);
   await delay(350);
   const cameraBeforeScreenshot = await evaluate(`document.querySelector('.react-flow__viewport').style.transform`);
+  await evaluate(`(()=>{window.__serializeScreenshot=XMLSerializer.prototype.serializeToString;XMLSerializer.prototype.serializeToString=function(node){const root=node.documentElement??node;if(root.tagName==='svg' && root.getAttribute('preserveAspectRatio')==='none')window.__screenshotVector={width:Number(root.getAttribute('width')),height:Number(root.getAttribute('height')),viewBox:root.getAttribute('viewBox').split(' ').map(Number)};return window.__serializeScreenshot.call(this,node);};})()`);
   await evaluate(`(()=>{const send=window.ideSend;window.ideSend=m=>{if(m.type==='screenshot:copy')window.__screenshotSmoke=m.image;send(m);};})()`);
   await button("Copy screenshot");
   await waitFor(`document.querySelector('[role="status"]')?.textContent.includes('Screenshot copied')`);
+  await evaluate(`XMLSerializer.prototype.serializeToString=window.__serializeScreenshot`);
   const screenshot = await evaluate(`window.__screenshotSmoke`);
   assert(screenshot.startsWith("data:image/png;base64,"));
   assert(await evaluate(`(async()=>{
@@ -185,13 +187,13 @@ try {
     const point=path.getPointAtLength(path.getTotalLength()/2);
     const screen=new DOMPoint(point.x,point.y).matrixTransform(path.getScreenCTM());
     const bounds=document.querySelector('.workspace').getBoundingClientRect();
-    const rects=[...document.querySelectorAll('.react-flow__node,.column > b')].map(n=>n.getBoundingClientRect());
-    const left=Math.max(bounds.left,Math.floor(Math.min(...rects.map(r=>r.left))-24));
-    const top=Math.max(bounds.top,Math.floor(Math.min(...rects.map(r=>r.top))-24));
-    const ratio=Math.min(devicePixelRatio||1,2);
-    if(image.height>=bounds.height*ratio*.9)throw new Error('Empty vertical margins were not cropped');
-    const x=Math.round((screen.x-left)*ratio);
-    const y=Math.round((screen.y-top)*ratio);
+    const vector=window.__screenshotVector;
+    if(image.width!==vector.width || image.height!==vector.height)throw new Error('SVG must rasterize at final PNG resolution');
+    const [cropX,cropY,cropWidth,cropHeight]=vector.viewBox;
+    if(cropHeight>=bounds.height*.9)throw new Error('Empty vertical margins were not cropped');
+    if(image.width<cropWidth*3.9)throw new Error('Screenshot must render at high resolution regardless of display DPI');
+    const x=Math.round((screen.x-bounds.x-cropX)*image.width/cropWidth);
+    const y=Math.round((screen.y-bounds.y-cropY)*image.height/cropHeight);
     const pixels=ctx.getImageData(x-2,y-2,5,5).data;
     return Array.from(pixels).some((v,i)=>i%4===0 && v>40);
   })()`), "Exported PNG must contain the dependency arrow, not just job cards");

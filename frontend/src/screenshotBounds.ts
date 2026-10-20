@@ -5,6 +5,28 @@ export interface Rectangle {
   height: number;
 }
 
+/** Render vectors at export resolution, with at least 3 pixels per job layout unit
+ * when zoomed out, unless the image's memory/dimension limits are reached. */
+export function screenshotSize(width: number, height: number, zoom = 1) {
+  if (!(width > 0 && height > 0 && Number.isFinite(width + height))) {
+    throw new Error("Workspace has no renderable area");
+  }
+  const desired = Math.max(
+    4,
+    3 / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1),
+  );
+  const scale = Math.min(
+    desired,
+    Math.sqrt(40_000_000 / (width * height)),
+    16384 / width,
+    16384 / height,
+  );
+  return {
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+  };
+}
+
 /** Union visible content only; stage lanes and canvas decorations are not content. */
 export function screenshotBounds(
   view: Rectangle,

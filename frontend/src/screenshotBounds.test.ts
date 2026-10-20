@@ -1,5 +1,23 @@
 import { expect, it } from "vitest";
-import { screenshotBounds } from "./screenshotBounds";
+import { screenshotBounds, screenshotSize } from "./screenshotBounds";
+
+it("exports at 4x screen resolution independently of display DPI", () => {
+  expect(screenshotSize(800, 400)).toEqual({ width: 3200, height: 1600 });
+});
+it("compensates for graph zoom so small job text remains readable", () => {
+  expect(screenshotSize(600, 300, 0.25)).toEqual({ width: 7200, height: 3600 });
+});
+it("limits large exports by memory and browser canvas dimensions", () => {
+  for (const [width, height] of [
+    [5000, 3000],
+    [20000, 100],
+    [300, 20000],
+  ]) {
+    const size = screenshotSize(width, height, 0.1);
+    expect(size.width * size.height).toBeLessThanOrEqual(40_000_000);
+    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(16384);
+  }
+});
 
 const view = { x: 100, y: 200, width: 1000, height: 800 };
 it("removes empty margins and retains 24px padding", () => {

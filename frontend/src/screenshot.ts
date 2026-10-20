@@ -1,5 +1,5 @@
 import { toSvg } from "html-to-image";
-import { screenshotBounds } from "./screenshotBounds";
+import { screenshotBounds, screenshotSize } from "./screenshotBounds";
 
 const svgProperties = [
   "fill",
@@ -80,6 +80,21 @@ export async function captureWorkspace(
       );
   });
   const image = new Image();
+  const viewport = workspace.querySelector(".react-flow__viewport");
+  const zoom = viewport
+    ? new DOMMatrixReadOnly(getComputedStyle(viewport).transform).a
+    : 1;
+  const size = screenshotSize(crop.width, crop.height, zoom);
+  // Size the SVG before decoding. Scaling a screen-sized Image in drawImage
+  // enlarges an already rasterized foreignObject and makes text blurry.
+  const svg = documentCopy.documentElement;
+  svg.setAttribute("width", String(size.width));
+  svg.setAttribute("height", String(size.height));
+  svg.setAttribute(
+    "viewBox",
+    `${crop.x} ${crop.y} ${crop.width} ${crop.height}`,
+  );
+  svg.setAttribute("preserveAspectRatio", "none");
   const loaded = new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
     image.onerror = () => reject(new Error("Cannot render workspace"));
@@ -89,9 +104,8 @@ export async function captureWorkspace(
     encodeURIComponent(new XMLSerializer().serializeToString(documentCopy));
   await loaded;
   const canvas = document.createElement("canvas");
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.ceil(crop.width * ratio);
-  canvas.height = Math.ceil(crop.height * ratio);
+  canvas.width = size.width;
+  canvas.height = size.height;
   const context = canvas.getContext("2d");
   if (
     !context ||
@@ -102,16 +116,6 @@ export async function captureWorkspace(
     throw new Error("Workspace too large");
   context.fillStyle = background;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(
-    image,
-    (crop.x * image.width) / view.width,
-    (crop.y * image.height) / view.height,
-    (crop.width * image.width) / view.width,
-    (crop.height * image.height) / view.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  );
+  context.drawImage(image, 0, 0);
   return canvas.toDataURL("image/png");
 }

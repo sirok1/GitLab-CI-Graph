@@ -10,6 +10,8 @@ Release notes use the matching version section below. For future versions withou
 
 ### Fixed
 
+- Render screenshot vectors directly at high PNG resolution (4x by default), compensating for graph zoom instead of enlarging a screen-resolution raster.
+
 - Automatically crop empty screenshot margins around visible graph content with a small padding, preserving zoom and pan.
 
 - Preserve zoom and pan when pipeline files refresh, including recovery from invalid YAML.

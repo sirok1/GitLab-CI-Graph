@@ -28,6 +28,8 @@ Calls `POST /api/v4/projects/:id/ci/lint` with current selected file content (in
 
 ## Screenshots
 
+PNG export renders the graph directly at 4x resolution independently of display DPI, increasing the scale further for zoomed-out jobs. It retains automatic cropping and does not change the visible camera. Large exports are bounded to 40 megapixels and 16,384 pixels per side.
+
 Actual JCEF view captured from the running IntelliJ IDEA sandbox, with `test-web` selected:
 
 ![Stages view in the embedded browser](docs/screenshots/stages-dark.png)

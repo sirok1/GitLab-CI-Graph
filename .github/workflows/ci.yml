@@ -39,10 +39,10 @@ jobs:
       - name: Resolve version
         run: echo "PLUGIN_VERSION=$(node scripts/ci/version.mjs)" >> "$GITHUB_ENV"
       - name: Test and build plugin
-        run: ./gradlew --no-daemon --console=plain test buildPlugin -PpluginVersion="$PLUGIN_VERSION"
+        run: bash ./gradlew --no-daemon --console=plain test buildPlugin -PpluginVersion="$PLUGIN_VERSION"
       - name: Verify release compatibility
         if: startsWith(github.ref, 'refs/tags/')
-        run: ./gradlew --no-daemon --console=plain verifyPlugin -PpluginVersion="$PLUGIN_VERSION"
+        run: bash ./gradlew --no-daemon --console=plain verifyPlugin -PpluginVersion="$PLUGIN_VERSION"
       - name: Prepare ZIP, checksums and release notes
         run: node scripts/ci/prepare-release.mjs "$PLUGIN_VERSION"
       - name: Upload plugin bundle

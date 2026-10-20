@@ -1,0 +1,29 @@
+variables:
+  FOO: bar
+default:
+  image: node:22
+workflow:
+  rules: []
+stages: [build, test]
+include:
+  - local: /ci/build.yml
+  - remote: https://example.org/ci.yml
+.base:
+  image: node:22
+test:
+  extends: [.base]
+  needs:
+    - job: build
+      artifacts: true
+    - job: prepare
+      optional: true
+  rules:
+    - if: $CI_COMMIT_BRANCH
+  when: manual
+  allow_failure: true
+  environment:
+    name: production
+  artifacts:
+    paths: [out]
+  trigger:
+    include: child.yml

@@ -1,0 +1,13 @@
+<idea-plugin>
+    <id>space.sirok.gitlab-ci-graph</id>
+    <name>GitLab CI Graph</name>
+    <vendor>Sirok</vendor>
+    <description><![CDATA[Interactive GitLab CI/CD pipeline DAG with local YAML navigation and GitLab CI Lint integration.]]></description>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+    <depends>com.intellij.modules.jcef</depends>
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="GitLab CI Graph" anchor="bottom" factoryClass="space.sirok.gitlabcigraph.toolwindow.GraphToolWindowFactory"/>
+        <projectConfigurable parentId="tools" id="space.sirok.gitlab-ci-graph.settings" displayName="GitLab CI Graph" instance="space.sirok.gitlabcigraph.settings.GraphConfigurable"/>
+    </extensions>
+</idea-plugin>

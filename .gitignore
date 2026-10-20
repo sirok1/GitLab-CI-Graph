@@ -1,0 +1,12 @@
+.gradle/
+.kotlin/
+.intellijPlatform/
+build/
+frontend/node_modules/
+frontend/dist/
+.idea/
+*.iml
+*.log
+.gradle-ci/
+.npm-ci/
+.ci-tools/

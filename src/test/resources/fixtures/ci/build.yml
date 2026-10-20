@@ -1,0 +1,6 @@
+build:
+  stage: build
+  script: make
+prepare:
+  stage: build
+  script: prepare

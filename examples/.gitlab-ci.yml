@@ -1,0 +1,33 @@
+stages: [build, test, deploy]
+
+build-web:
+  stage: build
+  script: npm run build
+  artifacts:
+    paths: [dist/]
+
+build-api:
+  stage: build
+  script: ./gradlew assemble
+
+test-web:
+  stage: test
+  needs:
+    - job: build-web
+      artifacts: true
+  script: npm test
+
+test-api:
+  stage: test
+  needs: [build-api]
+  script: ./gradlew test
+
+deploy-prod:
+  stage: deploy
+  needs:
+    - test-web
+    - job: test-api
+      optional: true
+  when: manual
+  environment: production
+  script: echo deploy

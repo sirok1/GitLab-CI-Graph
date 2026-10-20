@@ -1,0 +1,62 @@
+stages: [build, release]
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - if: "$CI_COMMIT_BRANCH"
+
+variables:
+  GIT_DEPTH: "0"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-ci"
+  npm_config_cache: "$CI_PROJECT_DIR/.npm-ci"
+  NODE_VERSION: "24.13.0"
+
+build-plugin:
+  stage: build
+  image: eclipse-temurin:21-jdk-noble
+  interruptible: true
+  timeout: 45m
+  cache:
+    key:
+      files:
+        [gradle/wrapper/gradle-wrapper.properties, frontend/package-lock.json]
+      prefix: linux-java21-node24
+    paths: [.gradle-ci/caches/, .gradle-ci/wrapper/, .npm-ci/]
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends curl ca-certificates xz-utils git libfontconfig1 libfreetype6 libxrender1 libxtst6 libxi6 libxext6 libx11-6
+    - bash scripts/ci/install-node.sh
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/node/bin:$PATH"
+  script:
+    - node --test scripts/ci/*.test.mjs
+    - VERSION=$(node scripts/ci/version.mjs)
+    - ./gradlew --no-daemon --console=plain test buildPlugin -PpluginVersion="$VERSION"
+    - if [ -n "${CI_COMMIT_TAG:-}" ]; then ./gradlew --no-daemon --console=plain verifyPlugin -PpluginVersion="$VERSION"; fi
+    - node scripts/ci/prepare-release.mjs "$VERSION"
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - build/release/
+      - build/reports/tests/
+      - build/reports/pluginVerifier/
+      - build/test-results/test/
+    reports:
+      junit: build/test-results/test/TEST-*.xml
+
+release:
+  stage: release
+  image: node:24.13.0-bookworm-slim
+  needs:
+    - job: build-plugin
+      artifacts: true
+  resource_group: plugin-releases
+  interruptible: false
+  timeout: 10m
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/'
+  script:
+    - node scripts/ci/publish-gitlab.mjs

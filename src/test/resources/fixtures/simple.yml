@@ -1,0 +1,8 @@
+stages: [build, test]
+build:
+  stage: build
+  script: npm build
+test:
+  stage: test
+  needs: [build]
+  script: npm test

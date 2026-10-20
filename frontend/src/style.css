@@ -141,6 +141,12 @@ header select {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
+.badges .extends-badge {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .job.match {
   box-shadow: 0 0 0 2px var(--accent);
 }

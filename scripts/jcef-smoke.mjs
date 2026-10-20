@@ -1,6 +1,6 @@
 // Optional integration check against the actual browser embedded in runIde, never a standalone UI.
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 
 const port = process.argv[2] ?? "9222";
@@ -63,6 +63,87 @@ async function search(text) {
     `(()=>{const s=document.querySelector('input[aria-label="Search jobs"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(s,${JSON.stringify(text)});s.dispatchEvent(new Event('input',{bubbles:true}));})()`,
   );
   await delay(150);
+}
+async function waitFor(expression) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await evaluate(expression)) return;
+    await delay(100);
+  }
+  assert.fail(`Timed out waiting for ${expression}`);
+}
+async function checkLocalInheritance() {
+  // Exclusive creation avoids replacing an existing example or a user's configuration.
+  const fixturePath = "examples/.gitlab-ci.yaml";
+  let created = false;
+  let originalFile = ".gitlab-ci.yml";
+  try {
+    await writeFile(
+      fixturePath,
+      await readFile("src/test/resources/fixtures/inheritance.yml"),
+      { flag: "wx" },
+    );
+    created = true;
+    await evaluate(
+      `window.addEventListener('pipeline:update',e=>window.__inheritanceSmoke=e.detail);window.ideSend({type:'graph:refresh'})`,
+    );
+    await waitFor(
+      `window.__inheritanceSmoke?.configs.includes('.gitlab-ci.yaml')`,
+    );
+    originalFile = await evaluate(`window.__inheritanceSmoke.selectedFile`);
+    await evaluate(
+      `window.ideSend({type:'source:change',file:'.gitlab-ci.yaml',mode:'LOCAL'})`,
+    );
+    await waitFor(
+      `window.__inheritanceSmoke?.pipeline?.jobs.some(j=>j.name==='publish Android dev') && !window.__inheritanceSmoke.loading`,
+    );
+    await delay(400);
+    const result = await evaluate(`(()=>{
+      const p=window.__inheritanceSmoke.pipeline;
+      return {jobs:p.jobs.length,hidden:p.jobs.some(j=>j.name.startsWith('.')),
+        publish:p.jobs.filter(j=>j.name.startsWith('publish Android')).map(j=>({stage:j.stage,parent:j.stageInheritedFrom})),
+        badges:Array.from(document.querySelectorAll('.extends-badge')).map(e=>e.textContent),
+        warnings:p.warnings.map(w=>w.message)};
+    })()`);
+    assert.equal(result.jobs, 8);
+    assert.equal(result.hidden, false);
+    assert.equal(result.publish.length, 2);
+    assert(
+      result.publish.every(
+        (j) =>
+          j.stage === "publish_android" &&
+          j.parent === ".publish Android release",
+      ),
+    );
+    assert(result.badges.some((b) => b.includes(".publish Android release")));
+    assert(
+      result.warnings.some(
+        (w) =>
+          w.includes("build_android_apk_dev") && w.includes("not in stages"),
+      ),
+    );
+    await evaluate(
+      `document.querySelector('.react-flow__node[data-id="publish Android dev"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`,
+    );
+    await delay(100);
+    assert.match(
+      await evaluate(`document.querySelector('aside').textContent`),
+      /Stage inherited from.*\.publish Android release/,
+    );
+    console.log(
+      "Inheritance JCEF regression passed: hidden templates, inherited publish stages, EXTENDS badges, details and undeclared-stage warnings.",
+    );
+  } finally {
+    if (created) {
+      await evaluate(
+        `window.ideSend({type:'source:change',file:${JSON.stringify(originalFile)},mode:'LOCAL'})`,
+      );
+      await unlink(fixturePath);
+      await waitFor(
+        `window.__inheritanceSmoke?.pipeline?.jobs.some(j=>j.name==='test-web') && !window.__inheritanceSmoke.loading`,
+      );
+      await delay(350);
+    }
+  }
 }
 try {
   await button("Fit View");
@@ -177,6 +258,7 @@ try {
   );
   await button("Reset layout");
   await button("Fit View");
+  await checkLocalInheritance();
   await mkdir("docs/screenshots", { recursive: true });
   const shot = await call("Page.captureScreenshot", { format: "png" });
   await writeFile(

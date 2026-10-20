@@ -22,6 +22,9 @@ export interface PipelineJob {
   rulesCount: number;
   image?: string;
   hasExplicitNeeds: boolean;
+  inheritanceChain?: string[];
+  unresolvedExtends?: string[];
+  stageInheritedFrom?: string;
 }
 export interface PipelineEdge {
   source: string;

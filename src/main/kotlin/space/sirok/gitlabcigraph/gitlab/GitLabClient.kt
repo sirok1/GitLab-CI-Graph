@@ -43,7 +43,10 @@ class GitLabClient(private val timeout: Duration = Duration.ofSeconds(30)) : Aut
             } ?: emptyList()
             extra.copy(stage = str("stage") ?: extra.stage, needs = needs, whenType = str("when") ?: extra.whenType,
                 allowFailure = j["allow_failure"]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asBoolean ?: extra.allowFailure,
-                environment = str("environment") ?: extra.environment, sourceFile = original?.sourceFile, sourceLine = original?.sourceLine)
+                environment = str("environment") ?: extra.environment, sourceFile = original?.sourceFile, sourceLine = original?.sourceLine,
+                extends = original?.extends?.takeIf { it.isNotEmpty() } ?: extra.extends,
+                inheritanceChain = original?.inheritanceChain ?: emptyList(),
+                stageInheritedFrom = original?.takeIf { it.stage == (str("stage") ?: extra.stage) }?.stageInheritedFrom)
         } ?: emptyList()
         if (jobs.any { it.sourceFile == null }) warnings += PipelineWarning("Some resolved jobs have no exact local definition; navigation is unavailable for them.")
         val declared = LocalPipelineParser.strings(merged["stages"]).ifEmpty { local.stages.map { it.name } }

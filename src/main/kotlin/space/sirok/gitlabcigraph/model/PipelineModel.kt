@@ -12,6 +12,9 @@ data class PipelineJob(
     val trigger: TriggerInfo? = null, val sourceFile: String? = null, val sourceLine: Int? = null,
     val extends: List<String> = emptyList(), val rulesCount: Int = 0, val image: String? = null,
     val hasExplicitNeeds: Boolean = false,
+    val inheritanceChain: List<String> = emptyList(),
+    val unresolvedExtends: List<String> = emptyList(),
+    val stageInheritedFrom: String? = null,
 )
 data class PipelineEdge(val source: String, val target: String, val artifacts: Boolean?, val optional: Boolean)
 data class PipelineWarning(val message: String)

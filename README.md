@@ -17,7 +17,9 @@ Plugin ID: `space.sirok.gitlab-ci-graph` · Vendor: Sirok.
 
 ### Local mode
 
-Works offline without credentials. Uses a YAML node parser, preserving source locations and expanding local includes within the project. Shows declared structure, **not a compiled or validated GitLab pipeline**. Rules are counted but not executed; hidden templates are omitted and `extends` is shown in details. Stage columns never invent dependency arrows.
+Works offline without credentials. Uses a YAML node parser, preserving source locations and expanding local includes within the project. Supports local `extends`, including multiple parents, nested templates and parents from local includes: mappings merge, arrays replace, explicit null clears inherited values, and child fields take precedence. Hidden templates stay outside the main DAG; nodes show an EXTENDS badge, and details include the direct parents, local ancestry and the template that supplied the stage. Cycles, missing templates and undeclared stages produce warnings. An unknown inherited stage is shown as `unresolved` instead of assuming `test`. Stage columns never invent dependency arrows.
+
+This is still **not a compiled or validated GitLab pipeline**: rules, remote templates, `!reference`, matrix expansion and other server-dependent features require GitLab mode. A job with no stage and no unresolved parents uses GitLab's default `test` stage.
 
 ### GitLab resolved mode
 
@@ -140,9 +142,9 @@ Gson serializes the model; frontend never receives raw YAML or credentials. Snak
 
 ## Known limitations
 
-- Local mode does not implement GitLab inheritance, rule evaluation, matrix expansion, remote/project/component includes or conditional include evaluation. Literal local includes are supported; glob/variable include paths are reported as unavailable.
+- Local mode expands local `extends` up to 11 inheritance levels; it does not evaluate rules, matrix expansion, remote/project/component includes or conditional include evaluation. Literal local includes are supported; glob/variable include paths are reported as unavailable.
 - `pages` is treated as a reserved global keyword as requested; modern GitLab configurations using a job literally named `pages` should use GitLab mode.
-- Duplicate job definitions use the later complete definition; local partial-map GitLab merge semantics and YAML `<<` inheritance are not emulated.
+- Duplicate job definitions across local includes merge mappings, with later values overriding earlier ones. YAML `<<` inheritance and `!reference` evaluation are not implemented.
 - Local valid indicator means readable YAML structure only. Use GitLab mode for authoritative pipeline validation.
 - Child pipeline jobs are marked but child graphs are not recursively fetched. External/project needs appear in details but do not create false local edges.
 - Caret-to-graph selection and excluded-job display are not implemented.

@@ -24,7 +24,7 @@ const JobCard = memo(({ data, selected }: NodeProps<JobNode>) => {
   return (
     <div
       className={`job ${selected ? "selected" : ""} ${data.dimmed ? "dimmed" : ""} ${data.match ? "match" : ""}`}
-      title={`${j.name}\n${j.sourceFile ?? "Resolved job"}:${j.sourceLine ?? ""}`}
+      title={`${j.name}\n${j.sourceFile ?? "Resolved job"}:${j.sourceLine ?? ""}${j.extends.length ? `\nExtends: ${j.extends.join(", ")}` : ""}${j.stageInheritedFrom ? `\nStage inherited from: ${j.stageInheritedFrom}` : ""}`}
     >
       <Handle type="target" position={Position.Left} />
       <strong>{j.name}</strong>
@@ -38,6 +38,11 @@ const JobCard = memo(({ data, selected }: NodeProps<JobNode>) => {
         {j.hasArtifacts && <span>ARTIFACTS</span>}
         {j.trigger && <span>CHILD PIPELINE</span>}
         {j.environment && <span>{j.environment}</span>}
+        {j.extends.length > 0 && (
+          <span className="extends-badge" title={j.extends.join(", ")}>
+            EXTENDS: {j.extends.join(", ")}
+          </span>
+        )}
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
@@ -63,6 +68,7 @@ function Details({ job }: { job: PipelineJob }) {
       <dl>
         {Object.entries({
           Stage: job.stage,
+          "Stage inherited from": job.stageInheritedFrom,
           Needs: job.needs
             .map(
               (n) =>
@@ -74,6 +80,8 @@ function Details({ job }: { job: PipelineJob }) {
           "Allow failure": String(job.allowFailure ?? false),
           Environment: job.environment,
           Extends: job.extends.join(", "),
+          "Local template ancestry": job.inheritanceChain?.join(", "),
+          "Unresolved templates": job.unresolvedExtends?.join(", "),
           Rules: String(job.rulesCount),
           Image: job.image,
           Trigger: job.trigger?.description,
@@ -316,7 +324,7 @@ function App() {
           {state.loading
             ? "Loading…"
             : p
-              ? `${p.valid ? "✓" : "✕"} ${p.validation === "STRUCTURE ONLY" ? "YAML structure valid · rules/includes/extends unresolved" : p.valid ? "Valid" : "Invalid"}`
+              ? `${p.valid ? "✓" : "✕"} ${p.validation === "STRUCTURE ONLY" ? "YAML structure valid · local extends expanded; rules/external includes unresolved" : p.valid ? "Valid" : "Invalid"}`
               : ""}
         </span>
         {search && <span>{matches.length} matches</span>}

@@ -1,0 +1,54 @@
+stages: [test, build_mr, build_android_apk, send, publish_android]
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+sast:
+  stage: test
+lints:
+  script: flutter analyze
+
+.android_signed_release:
+  before_script: [echo prepare signing]
+
+.publish Android release:
+  image: alpine:3.21
+  stage: publish_android
+  before_script: [echo prepare upload]
+  script: echo upload
+
+build Android dev:
+  extends: .android_signed_release
+  stage: build_android_apk
+  script: echo build
+  artifacts:
+    paths: [dist/android/*.apk]
+
+send dev build:
+  stage: send
+  needs:
+    - job: build Android dev
+      artifacts: true
+  script: echo send
+
+publish Android dev:
+  extends: .publish Android release
+  needs:
+    - job: build Android dev
+      artifacts: true
+
+build Android stable:
+  extends: .android_signed_release
+  stage: build_android_apk_dev
+  script: echo build stable
+
+publish Android stable:
+  extends: .publish Android release
+  needs:
+    - job: build Android stable
+      artifacts: true
+
+build Web dev:
+  stage: build_web_dev
+  needs: [lints]
+  script: echo build web

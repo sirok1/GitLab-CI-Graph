@@ -5,6 +5,7 @@ import com.google.gson.JsonParser
 import org.junit.Assert.*
 import org.junit.Test
 import space.sirok.gitlabcigraph.model.PipelineModel
+import space.sirok.gitlabcigraph.model.PipelineJob
 import java.net.InetSocketAddress
 import java.time.Duration
 
@@ -47,5 +48,20 @@ class GitLabClientTest {
         val failure = GitLabClient().use { client -> assertThrows(GitLabException::class.java) { client.resolve("http://127.0.0.1", "123", "private-test-value\n", "main", "job: {}", PipelineModel()) } }
         assertFalse(failure.message!!.contains("private-test-value"))
         assertTrue(failure.message!!.contains("unsupported characters"))
+    }
+    @Test fun resolvedStageIsAuthoritativeAndLocalExtendsMetadataSurvives() = server(200, """{"valid":true,"jobs":[{"name":"publish","stage":"server-stage"}]}""") { url ->
+        val local = PipelineModel(jobs = listOf(PipelineJob(
+            "publish", "publish", stage = "local-stage", extends = listOf(".release"),
+            inheritanceChain = listOf(".base", ".release"), stageInheritedFrom = ".base",
+            sourceFile = ".gitlab-ci.yml", sourceLine = 12,
+        )))
+        val p = GitLabClient().use { it.resolve(url, "123", "secret-test", "main", "publish: {}", local) }
+        val job = p.jobs.single()
+        assertEquals("server-stage", job.stage)
+        assertEquals(listOf(".release"), job.extends)
+        assertEquals(listOf(".base", ".release"), job.inheritanceChain)
+        assertEquals(12, job.sourceLine)
+        assertNull(job.stageInheritedFrom)
+        assertTrue(job.unresolvedExtends.isEmpty())
     }
 }
